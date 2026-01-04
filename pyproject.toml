@@ -1,0 +1,141 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "noxrunner"
+dynamic = ["version"]
+description = "Python client library for NoxRunner-compatible sandbox execution backends (zero dependencies, standard library only)"
+readme = "README.md"
+requires-python = ">=3.8,<3.15"
+license = {text = "MIT"}
+authors = [
+    {name = "NoxRunner Team"}
+]
+keywords = ["sandbox", "execution", "container", "api", "client", "zero-dependencies", "standard-library"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Systems Administration",
+]
+
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "flake8>=5.0.0",
+    "mypy>=0.991",
+    "build>=0.10.0",
+]
+
+docs = [
+    "sphinx>=5.0.0,<9.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "furo>=2024.1.0",
+    "sphinx-autodoc-typehints>=1.19.0",
+    "sphinx-copybutton>=0.5.0",
+    "sphinx-design>=0.5.0",
+]
+
+[project.scripts]
+noxrunner = "noxrunner.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/noxrunner/noxrunner"
+Documentation = "https://noxrunner.readthedocs.io"
+Repository = "https://github.com/noxrunner/noxrunner"
+Issues = "https://github.com/noxrunner/noxrunner/issues"
+
+[tool.setuptools.packages.find]
+exclude = [
+    "tests*",
+    "examples*",
+    "docs*",
+    "*.tests*",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "noxrunner.__version__"}
+
+[tool.setuptools.package-data]
+noxrunner = ["py.typed"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312', 'py313', 'py314']
+include = '\.pyi?$'
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["noxrunner"]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+    ".venv",
+    "venv",
+    ".pytest_cache",
+    ".mypy_cache",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "flake8>=5.0.0",
+    "mypy>=0.991",
+    "build>=0.10.0",
+]
+docs = [
+    "sphinx>=5.0.0,<9.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "furo>=2024.1.0",
+    "sphinx-autodoc-typehints>=1.19.0",
+    "sphinx-copybutton>=0.5.0",
+    "sphinx-design>=0.5.0",
+]
+

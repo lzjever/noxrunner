@@ -1,0 +1,3 @@
+# NoxRunner has zero runtime dependencies
+# It uses only Python standard library
+
