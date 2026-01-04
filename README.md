@@ -10,7 +10,7 @@
 
 ## 📖 About This Project
 
-NoxRunner is the client library extracted from **Agentsmith**, a commercial distributed, high-concurrency secure sandbox system. In the commercial Agentsmith platform, sandboxes run on enterprise private cloud clusters with comprehensive security policies, operational standards, automated container management, image building, resource allocation, and content auditing capabilities. These enterprise features are not part of this open-source release.
+NoxRunner is the client library extracted from **Agentsmith**, a commercial distributed, high-concurrency AI-Agent development and operating platform. In the commercial Agentsmith platform, sandboxes run on enterprise private cloud clusters with comprehensive security policies, operational standards, automated container management, image building, resource allocation, and content auditing capabilities. These enterprise features are not part of this open-source release.
 
 **What's Open Source:**
 - ✅ **Client Library**: This Python client library for interacting with NoxRunner backends
@@ -219,5 +219,5 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 ## 🙏 Acknowledgments
 
-NoxRunner was originally developed as part of **Agentsmith**, a commercial distributed secure sandbox platform. The client library and backend specification have been extracted and open-sourced to enable broader adoption and community contribution. The local sandbox simulation mode was added to facilitate development, testing, and POC demonstrations without requiring access to production infrastructure.
+NoxRunner was originally developed as part of **Agentsmith**, a commercial distributed AI-Agent development and operating platform. The client library and backend specification have been extracted and open-sourced to enable broader adoption and community contribution. The local sandbox simulation mode was added to facilitate development, testing, and POC demonstrations without requiring access to production infrastructure.
 
