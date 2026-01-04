@@ -8,10 +8,28 @@
 
 **NoxRunner** is a Python client library for interacting with NoxRunner-compatible sandbox execution backends. It uses **only Python standard library** - **zero external dependencies**.
 
+## 📖 About This Project
+
+NoxRunner is the client library extracted from **Agentsmith**, a commercial distributed, high-concurrency secure sandbox system. In the commercial Agentsmith platform, sandboxes run on enterprise private cloud clusters with comprehensive security policies, operational standards, automated container management, image building, resource allocation, and content auditing capabilities. These enterprise features are not part of this open-source release.
+
+**What's Open Source:**
+- ✅ **Client Library**: This Python client library for interacting with NoxRunner backends
+- ✅ **Backend Specification**: The complete API specification (see [SPECS.md](SPECS.md))
+- ✅ **Local Sandbox Mode**: A local device simulation mode for development, testing, and POC demos
+
+**Use Cases:**
+- 🧪 **Development & Testing**: Use the local sandbox mode to develop and test AI agents without the overhead of managing a full cluster
+- 🚀 **Production Deployment**: When ready to deploy publicly, switch to a real NoxRunner backend cluster for production workloads
+- 🔧 **Mock Backend**: Perfect for building simple AI agents that need a sandbox execution environment during development
+
+This approach significantly reduces operational and debugging burden during the development phase while maintaining compatibility with production-grade sandbox infrastructure.
+
 ## ✨ Features
 
 - ✅ **Zero Dependencies**: Only uses Python standard library
 - ✅ **Complete API Coverage**: All NoxRunner backend endpoints
+- ✅ **Shell Command Interface**: Natural shell command execution with `exec_shell()` method
+- ✅ **Environment Variable Support**: Full support for environment variable expansion in shell commands
 - ✅ **Friendly CLI**: Colored output, interactive shell
 - ✅ **Local Testing Mode**: Offline testing with local sandbox backend
 - ✅ **Easy to Use**: Simple API with clear error messages
@@ -58,8 +76,20 @@ print(f"Sandbox: {result['podName']}")
 # Wait for sandbox ready
 client.wait_for_pod_ready(session_id)
 
-# Execute command
+# Execute command (array format)
 result = client.exec(session_id, ["python3", "--version"])
+print(result["stdout"])
+
+# Execute shell command (string format - more natural!)
+result = client.exec_shell(session_id, "python3 --version")
+print(result["stdout"])
+
+# Shell commands with environment variables
+result = client.exec_shell(
+    session_id,
+    "echo $MY_VAR && ls -la",
+    env={"MY_VAR": "test_value"}
+)
 print(result["stdout"])
 
 # Upload files
@@ -189,5 +219,5 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 ## 🙏 Acknowledgments
 
-NoxRunner was originally developed as part of the sandbox project and has been extracted as a standalone library for broader use.
+NoxRunner was originally developed as part of **Agentsmith**, a commercial distributed secure sandbox platform. The client library and backend specification have been extracted and open-sourced to enable broader adoption and community contribution. The local sandbox simulation mode was added to facilitate development, testing, and POC demonstrations without requiring access to production infrastructure.
 

@@ -90,7 +90,7 @@ class RemoteSandboxBackend(SandboxBackend):
             error_body = b""
             try:
                 error_body = e.read()
-            except:
+            except Exception:
                 pass
             raise NoxRunnerHTTPError(e.code, str(e), error_body.decode("utf-8", errors="ignore"))
         except urllib.error.URLError as e:
@@ -118,7 +118,7 @@ class RemoteSandboxBackend(SandboxBackend):
 
         if not (200 <= status_code < 300):
             error_msg = response_body.decode("utf-8", errors="ignore")
-            raise NoxRunnerHTTPError(status_code, f"Request failed", error_msg)
+            raise NoxRunnerHTTPError(status_code, "Request failed", error_msg)
 
         if not response_body:
             return {}
@@ -133,7 +133,7 @@ class RemoteSandboxBackend(SandboxBackend):
         try:
             status_code, response_body = self._request("GET", "/healthz")
             return status_code == 200 and b"OK" in response_body
-        except:
+        except Exception:
             return False
 
     def create_sandbox(
@@ -246,7 +246,7 @@ class RemoteSandboxBackend(SandboxBackend):
                 result = self.exec(session_id, ["echo", "ready"], timeout_seconds=5)
                 if result.get("stdout", "").strip() == "ready":
                     return True
-            except:
+            except Exception:
                 # Sandbox might not be ready yet, continue polling
                 pass
 

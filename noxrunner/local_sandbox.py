@@ -13,7 +13,6 @@ import shutil
 import time
 import tarfile
 import io
-import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 from datetime import datetime, timedelta, timezone

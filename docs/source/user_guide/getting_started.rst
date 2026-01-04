@@ -48,8 +48,20 @@ Example
 
    # Wait for ready
    if client.wait_for_pod_ready(session_id, timeout=60):
-       # Execute command
+       # Execute command (array format)
        result = client.exec(session_id, ["python3", "--version"])
+       print(result["stdout"])
+
+       # Or use exec_shell for natural shell commands
+       result = client.exec_shell(session_id, "python3 --version")
+       print(result["stdout"])
+
+       # Shell commands with environment variables
+       result = client.exec_shell(
+           session_id,
+           "echo $MY_VAR",
+           env={"MY_VAR": "test_value"}
+       )
        print(result["stdout"])
 
        # Clean up

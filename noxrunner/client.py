@@ -7,7 +7,6 @@ Main client class for interacting with NoxRunner-compatible sandbox execution ba
 from typing import Dict, List, Optional, Union
 
 from noxrunner.backend import SandboxBackend
-from noxrunner.exceptions import NoxRunnerError, NoxRunnerHTTPError
 
 
 class NoxRunnerClient:
@@ -98,7 +97,7 @@ class NoxRunnerClient:
             Dict with 'podName' (or equivalent) and 'expiresAt'
 
         Raises:
-            NoxRunnerHTTPError: If request fails
+            :exc:`~noxrunner.exceptions.NoxRunnerHTTPError`: If request fails
 
         Example:
             >>> result = client.create_sandbox("my-session", ttl_seconds=1800)
@@ -119,7 +118,7 @@ class NoxRunnerClient:
             True if successful
 
         Raises:
-            NoxRunnerHTTPError: If request fails
+            :exc:`~noxrunner.exceptions.NoxRunnerHTTPError`: If request fails
 
         Example:
             >>> client.touch("my-session")
@@ -149,12 +148,72 @@ class NoxRunnerClient:
             Dict with 'exitCode', 'stdout', 'stderr', 'durationMs'
 
         Raises:
-            NoxRunnerHTTPError: If request fails
+            :exc:`~noxrunner.exceptions.NoxRunnerHTTPError`: If request fails
 
         Example:
             >>> result = client.exec("my-session", ["python3", "--version"])
             >>> print(result["stdout"])
         """
+        return self._backend.exec(session_id, cmd, workdir, env, timeout_seconds)
+
+    def exec_shell(
+        self,
+        session_id: str,
+        command: str,
+        workdir: str = "/workspace",
+        env: Optional[Dict[str, str]] = None,
+        timeout_seconds: int = 30,
+        shell: str = "sh",
+    ) -> dict:
+        """
+        Execute a shell command string in the sandbox.
+
+        This is a convenience method that allows you to pass shell commands
+        as a string (like you would type in a terminal), rather than as a list.
+        The command is executed using sh -c (or bash -c if shell='bash').
+
+        Args:
+            session_id: Session identifier
+            command: Shell command string to execute (e.g., "echo hello && ls -la")
+            workdir: Working directory (default: '/workspace')
+            env: Environment variables (optional)
+            timeout_seconds: Command timeout in seconds (default: 30)
+            shell: Shell to use ('sh' or 'bash', default: 'sh')
+
+        Returns:
+            Dict with 'exitCode', 'stdout', 'stderr', 'durationMs'
+
+        Raises:
+            :exc:`~noxrunner.exceptions.NoxRunnerHTTPError`: If request fails
+            ValueError: If shell is not 'sh' or 'bash'
+
+        Example:
+            >>> # Simple command
+            >>> result = client.exec_shell("my-session", "echo hello world")
+            >>> print(result["stdout"])
+            hello world
+
+            >>> # Command with pipes and redirection
+            >>> result = client.exec_shell("my-session", "ls -la | head -5")
+            >>> print(result["stdout"])
+
+            >>> # Command with environment variables
+            >>> result = client.exec_shell(
+            ...     "my-session",
+            ...     "echo $MY_VAR",
+            ...     env={"MY_VAR": "test_value"}
+            ... )
+            >>> print(result["stdout"])
+            test_value
+
+            >>> # Using bash instead of sh
+            >>> result = client.exec_shell("my-session", "echo $BASH_VERSION", shell='bash')
+        """
+        if shell not in ("sh", "bash"):
+            raise ValueError(f"shell must be 'sh' or 'bash', got: {shell}")
+
+        # Convert shell command string to exec format: [shell, '-c', command]
+        cmd = [shell, "-c", command]
         return self._backend.exec(session_id, cmd, workdir, env, timeout_seconds)
 
     def upload_files(
@@ -172,7 +231,7 @@ class NoxRunnerClient:
             True if successful
 
         Raises:
-            NoxRunnerHTTPError: If request fails
+            :exc:`~noxrunner.exceptions.NoxRunnerHTTPError`: If request fails
 
         Example:
             >>> client.upload_files("my-session", {
@@ -195,7 +254,7 @@ class NoxRunnerClient:
             Tar archive as bytes
 
         Raises:
-            NoxRunnerHTTPError: If request fails
+            :exc:`~noxrunner.exceptions.NoxRunnerHTTPError`: If request fails
 
         Example:
             >>> tar_data = client.download_files("my-session")
@@ -214,7 +273,7 @@ class NoxRunnerClient:
             True if successful
 
         Raises:
-            NoxRunnerHTTPError: If request fails
+            :exc:`~noxrunner.exceptions.NoxRunnerHTTPError`: If request fails
 
         Example:
             >>> client.delete_sandbox("my-session")

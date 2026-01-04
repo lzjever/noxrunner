@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Optional
 
 # Import the API client
-from noxrunner import NoxRunnerClient, NoxRunnerError, NoxRunnerHTTPError
+from noxrunner import NoxRunnerClient, NoxRunnerError
 
 
 # ANSI color codes
@@ -370,7 +370,7 @@ Local Testing Mode:
   Use --local-test flag to enable offline local testing mode.
   This mode executes commands in your local environment using /tmp directories.
   WARNING: This can cause data loss or security risks!
-  
+
   Example:
     %(prog)s --local-test create test-session
     %(prog)s --local-test exec test-session echo hello

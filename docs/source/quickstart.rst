@@ -39,8 +39,20 @@ As a Library
    # Wait for sandbox ready
    client.wait_for_pod_ready(session_id)
 
-   # Execute command
+   # Execute command (array format)
    result = client.exec(session_id, ["python3", "--version"])
+   print(result["stdout"])
+
+   # Execute shell command (string format - more natural!)
+   result = client.exec_shell(session_id, "python3 --version")
+   print(result["stdout"])
+
+   # Shell commands with environment variables
+   result = client.exec_shell(
+       session_id,
+       "echo $MY_VAR && ls -la",
+       env={"MY_VAR": "test_value"}
+   )
    print(result["stdout"])
 
    # Upload files

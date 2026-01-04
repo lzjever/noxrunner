@@ -1,10 +1,26 @@
 Local Testing Mode
 ==================
 
-NoxRunner provides a local testing mode for offline development and testing without requiring a running backend service.
-
 Overview
 --------
+
+The local testing mode provides a local device simulation of the NoxRunner backend, 
+allowing you to develop and test applications without requiring access to a production 
+sandbox cluster. This is particularly useful for:
+
+- **Development**: Build and test AI agents or other applications that need sandbox execution
+- **POC Demos**: Create proof-of-concept demonstrations without infrastructure setup
+- **Testing**: Run unit tests and integration tests locally
+- **Mock Backend**: Use as a mock backend during development
+
+.. note::
+
+   The local sandbox mode is designed to simulate the backend behavior for development purposes.
+   It does not provide the same level of security, isolation, or resource management as a production
+   NoxRunner backend cluster. Always use a production-grade backend for public-facing services.
+
+How It Works
+------------
 
 Local testing mode uses a local sandbox backend that:
 
@@ -60,7 +76,7 @@ All file paths are sanitized to prevent path traversal attacks.
 Paths outside the sandbox directory are automatically redirected to the workspace.
 
 Command Validation
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 Dangerous commands are blocked:
 
