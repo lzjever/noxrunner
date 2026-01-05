@@ -57,7 +57,7 @@ jobs:
       
       - name: Run linting
         run: |
-          uv run flake8 noxrunner/ tests/ examples/ --max-line-length=100 --extend-ignore=E203,W503,E501
+          uv run ruff check noxrunner/ tests/ examples/
       
       - name: Check formatting
         run: |
