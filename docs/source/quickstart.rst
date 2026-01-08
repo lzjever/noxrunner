@@ -74,25 +74,25 @@ Remote Mode (Default):
 .. code-block:: bash
 
    # Health check
-   noxrunner health
+   noxrc health
 
    # Create sandbox
-   noxrunner create my-session --wait
+   noxrc create my-session --wait
 
    # Execute command
-   noxrunner exec my-session python3 --version
+   noxrc exec my-session python3 --version
 
    # Upload files
-   noxrunner upload my-session script.py data.txt
+   noxrc upload my-session script.py data.txt
 
    # Download files
-   noxrunner download my-session --extract ./output
+   noxrc download my-session --extract ./output
 
    # Interactive shell
-   noxrunner shell my-session
+   noxrc shell my-session
 
    # Delete sandbox
-   noxrunner delete my-session
+   noxrc delete my-session
 
 Local Testing Mode
 ~~~~~~~~~~~~~~~~~~
@@ -102,10 +102,10 @@ For offline testing without a backend service:
 .. code-block:: bash
 
    # Use --local-test flag
-   noxrunner --local-test create my-session
-   noxrunner --local-test exec my-session echo "Hello"
-   noxrunner --local-test upload my-session script.py
-   noxrunner --local-test delete my-session
+   noxrc --local-test create my-session
+   noxrc --local-test exec my-session echo "Hello"
+   noxrc --local-test upload my-session script.py
+   noxrc --local-test delete my-session
 
 .. warning::
 

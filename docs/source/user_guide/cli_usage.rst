@@ -13,7 +13,7 @@ Check if the backend is healthy:
 
 .. code-block:: bash
 
-   noxrunner health
+   noxrc health
 
 Create Sandbox
 ~~~~~~~~~~~~~~
@@ -22,7 +22,7 @@ Create a new sandbox:
 
 .. code-block:: bash
 
-   noxrunner create my-session --wait
+   noxrc create my-session --wait
 
 Options:
 
@@ -37,7 +37,7 @@ Execute a command in the sandbox:
 
 .. code-block:: bash
 
-   noxrunner exec my-session python3 --version
+   noxrc exec my-session python3 --version
 
 Options:
 
@@ -53,7 +53,7 @@ Upload files to the sandbox:
 
 .. code-block:: bash
 
-   noxrunner upload my-session script.py data.txt
+   noxrc upload my-session script.py data.txt
 
 Options:
 
@@ -67,7 +67,7 @@ Download files from the sandbox:
 
 .. code-block:: bash
 
-   noxrunner download my-session --extract ./output
+   noxrc download my-session --extract ./output
 
 Options:
 
@@ -82,7 +82,7 @@ Start an interactive shell:
 
 .. code-block:: bash
 
-   noxrunner shell my-session
+   noxrc shell my-session
 
 Special commands:
 
@@ -97,7 +97,7 @@ Delete a sandbox:
 
 .. code-block:: bash
 
-   noxrunner delete my-session
+   noxrc delete my-session
 
 Local Testing Mode
 ------------------
@@ -106,8 +106,8 @@ Use ``--local-test`` flag for offline testing:
 
 .. code-block:: bash
 
-   noxrunner --local-test create my-session
-   noxrunner --local-test exec my-session echo "Hello"
+   noxrc --local-test create my-session
+   noxrc --local-test exec my-session echo "Hello"
 
 .. warning::
 

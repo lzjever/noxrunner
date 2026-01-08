@@ -51,7 +51,7 @@ docs = [
 ]
 
 [project.scripts]
-noxrunner = "noxrunner.cli:main"
+noxrc = "bin.noxrc:main"
 
 [project.urls]
 Homepage = "https://github.com/noxrunner/noxrunner"
@@ -60,6 +60,7 @@ Repository = "https://github.com/noxrunner/noxrunner"
 Issues = "https://github.com/noxrunner/noxrunner/issues"
 
 [tool.setuptools.packages.find]
+include = ["noxrunner*", "bin*"]
 exclude = [
     "tests*",
     "examples*",

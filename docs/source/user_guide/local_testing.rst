@@ -60,9 +60,9 @@ Use the ``--local-test`` flag:
 
 .. code-block:: bash
 
-   noxrunner --local-test create my-session
-   noxrunner --local-test exec my-session echo "Hello"
-   noxrunner --local-test delete my-session
+   noxrc --local-test create my-session
+   noxrc --local-test exec my-session echo "Hello"
+   noxrc --local-test delete my-session
 
 Security Features
 -----------------
