@@ -65,8 +65,11 @@ pip install noxrunner
 ```python
 from noxrunner import NoxRunnerClient
 
-# Create client
-client = NoxRunnerClient("http://127.0.0.1:8080")
+# Create client (local test mode for development)
+client = NoxRunnerClient(local_test=True)
+
+# Or connect to remote backend
+# client = NoxRunnerClient("http://127.0.0.1:8080")
 
 # Create sandbox
 session_id = "my-session"
@@ -97,8 +100,16 @@ client.upload_files(session_id, {
     "script.py": "print('Hello from NoxRunner!')"
 })
 
-# Download files
+# Download files as tar archive
 tar_data = client.download_files(session_id)
+
+# Download and extract to local directory (recommended)
+import tempfile
+from pathlib import Path
+
+with tempfile.TemporaryDirectory() as tmpdir:
+    client.download_workspace(session_id, tmpdir)
+    # Files are now in tmpdir
 
 # Delete sandbox
 client.delete_sandbox(session_id)
@@ -155,14 +166,27 @@ noxrc --local-test delete my-session
 ```
 noxrunner/
 ├── noxrunner/          # Python package
-│   ├── __init__.py    # Package initialization
-│   ├── client.py      # NoxRunnerClient class
-│   ├── exceptions.py  # Exception classes
-│   └── cli.py         # CLI tool
-├── tests/             # Test suite
-├── examples/          # Example scripts
-├── docs/              # Sphinx documentation
-└── README.md          # This file
+│   ├── __init__.py
+│   ├── client.py       # NoxRunnerClient class
+│   ├── exceptions.py   # Exception classes
+│   ├── backend/        # Backend implementations
+│   │   ├── base.py     # Abstract base class
+│   │   ├── local.py    # LocalBackend
+│   │   └── http.py     # HTTPSandboxBackend
+│   ├── security/        # Security utilities
+│   │   ├── command_validator.py
+│   │   └── path_sanitizer.py
+│   └── fileops/        # File operation utilities
+│       └── tar_handler.py
+├── tests/              # Test suite
+│   ├── test_security.py
+│   ├── test_fileops.py
+│   ├── test_backend_local.py
+│   ├── test_backend_http.py
+│   └── test_integration.py
+├── examples/           # Example scripts
+├── docs/               # Sphinx documentation
+└── README.md           # This file
 ```
 
 ## 🔌 Backend Compatibility
@@ -177,31 +201,29 @@ NoxRunner is designed to work with any backend that implements the [NoxRunner Ba
 ## 🧪 Testing
 
 ```bash
-# Run unit tests (excludes integration tests)
-make test
+# Run all unit tests
+pytest tests/test_security.py tests/test_fileops.py tests/test_backend_local.py tests/test_backend_http.py
 
-# Run integration tests (requires running NoxRunner backend)
-make test-integration
+# Run local backend integration tests
+pytest tests/test_integration.py::TestLocalBackendIntegration
+
+# Run HTTP backend integration tests (requires running backend)
+NOXRUNNER_ENABLE_INTEGRATION=1 NOXRUNNER_BASE_URL=http://127.0.0.1:8080 pytest tests/test_integration.py::TestHTTPSandboxBackendIntegration
 
 # Run with coverage
-make test-cov
+pytest --cov=noxrunner --cov-report=html
 
-# Run linting
-make lint
-
-# Format code
-make format
-
-# Run all checks
-make check
+# Run all tests
+pytest tests/
 ```
 
 ### Testing Modes
 
-- **Unit Tests**: Test local functionality using the local sandbox backend (no external dependencies)
-- **Integration Tests**: Test against a real remote NoxRunner backend (requires backend service)
+- **Unit Tests**: Test individual modules (security, fileops, backend mocks)
+- **Local Integration Tests**: Test LocalBackend with real file operations
+- **HTTP Integration Tests**: Test HTTPSandboxBackend against running backend service
 
-See the [documentation](https://noxrunner.readthedocs.io) for more details on testing.
+See [USAGE.md](USAGE.md) for more details on testing.
 
 ## 📝 License
 

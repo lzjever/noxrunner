@@ -6,22 +6,23 @@ They are designed to be safe by only operating within /tmp directories.
 """
 
 import os
-import tempfile
 import shutil
+import tempfile
+
 import pytest
 
 from noxrunner import NoxRunnerClient
-from noxrunner.local_sandbox import LocalSandboxBackend
+from noxrunner.backend.local import LocalBackend
 
 
-class TestLocalSandboxBackend:
-    """Test LocalSandboxBackend directly."""
+class TestLocalBackend:
+    """Test LocalBackend directly."""
 
     def setup_method(self):
         """Set up test fixtures."""
         # Use a temporary directory for testing
         self.test_base = tempfile.mkdtemp(prefix="noxrunner_test_")
-        self.backend = LocalSandboxBackend(base_dir=self.test_base)
+        self.backend = LocalBackend(base_dir=self.test_base)
         self.session_id = "test-session-123"
 
     def teardown_method(self):
@@ -410,8 +411,8 @@ class TestLocalSandboxBackend:
         assert len(tar_data) > 0
 
         # Extract and verify
-        import tarfile
         import io
+        import tarfile
 
         tar_buffer = io.BytesIO(tar_data)
         with tarfile.open(fileobj=tar_buffer, mode="r:gz") as tar:
@@ -506,8 +507,8 @@ class TestNoxRunnerClientLocalMode:
         assert len(tar_data) > 0
 
         # Verify content
-        import tarfile
         import io
+        import tarfile
 
         tar_buffer = io.BytesIO(tar_data)
         with tarfile.open(fileobj=tar_buffer, mode="r:gz") as tar:
@@ -740,9 +741,9 @@ class TestNoxRunnerClientLocalMode:
 
         if result["exitCode"] == 0:
             stdout = result["stdout"].strip()
-            assert (
-                "test" in stdout
-            ), f"Expected 'test' in output (workdir should be /workspace/subdir), got: {repr(stdout)}"
+            assert "test" in stdout, (
+                f"Expected 'test' in output (workdir should be /workspace/subdir), got: {repr(stdout)}"
+            )
 
 
 class TestLocalSandboxSecurity:
@@ -751,7 +752,7 @@ class TestLocalSandboxSecurity:
     def setup_method(self):
         """Set up test fixtures."""
         self.test_base = tempfile.mkdtemp(prefix="noxrunner_test_")
-        self.backend = LocalSandboxBackend(base_dir=self.test_base)
+        self.backend = LocalBackend(base_dir=self.test_base)
         self.session_id = "security-test"
 
     def teardown_method(self):
@@ -770,7 +771,7 @@ class TestLocalSandboxSecurity:
 
         # Try to access path outside sandbox
         outside_path = "/etc/passwd"
-        sanitized = self.backend._sanitize_path(outside_path, sandbox_path)
+        sanitized = self.backend.sanitizer.sanitize(str(outside_path), sandbox_path)
 
         # Should be redirected to workspace
         assert sandbox_path.resolve() in sanitized.resolve().parents
@@ -782,7 +783,7 @@ class TestLocalSandboxSecurity:
 
         # Try relative path traversal
         relative_path = "../../../etc/passwd"
-        sanitized = self.backend._sanitize_path(relative_path, sandbox_path)
+        sanitized = self.backend.sanitizer.sanitize(relative_path, sandbox_path)
 
         # Should be within sandbox
         try:
@@ -793,12 +794,12 @@ class TestLocalSandboxSecurity:
     def test_command_validation(self):
         """Test command validation."""
         # Blocked commands should be rejected
-        assert not self.backend._validate_command(["rm", "-rf", "/"])
-        assert not self.backend._validate_command(["sudo", "rm", "/"])
+        assert not self.backend.validator.validate(["rm", "-rf", "/"])
+        assert not self.backend.validator.validate(["sudo", "rm", "/"])
 
         # Allowed commands should pass (if they exist)
         # Note: We can't test all commands as they may not exist
-        assert self.backend._validate_command(["echo", "test"])
+        assert self.backend.validator.validate(["echo", "test"])
 
     def test_sandbox_isolation(self, capsys):
         """Test that sandboxes are isolated."""

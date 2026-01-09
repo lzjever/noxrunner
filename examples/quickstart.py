@@ -5,8 +5,9 @@ Quick Start Example for Sandbox Manager Python API
 This example demonstrates the basic usage of the Sandbox Manager API.
 """
 
-from noxrunner import NoxRunnerClient, NoxRunnerError
 import time
+
+from noxrunner import NoxRunnerClient, NoxRunnerError
 
 
 def main():
@@ -132,7 +133,15 @@ for item in os.listdir('.'):
     try:
         tar_data = client.download_files(session_id)
         print(f"   ✓ Downloaded {len(tar_data)} bytes")
-        # Note: In a real application, you would extract the tar file here
+
+        # Download and extract to local directory (recommended)
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            client.download_workspace(session_id, tmpdir)
+            files = list(Path(tmpdir).glob("*"))
+            print(f"   ✓ Extracted {len(files)} files to temporary directory")
     except NoxRunnerError as e:
         print(f"   ✗ Failed: {e}")
         return 1

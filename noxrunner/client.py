@@ -4,9 +4,11 @@ NoxRunner API Client
 Main client class for interacting with NoxRunner-compatible sandbox execution backends.
 """
 
+from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-from noxrunner.backend import SandboxBackend
+from noxrunner.backend.base import SandboxBackend
+from noxrunner.fileops.tar_handler import TarHandler
 
 
 class NoxRunnerClient:
@@ -47,18 +49,23 @@ class NoxRunnerClient:
         """
         # Create appropriate backend based on parameters
         if local_test:
-            from noxrunner.local_sandbox import LocalSandboxBackend
+            # Use new backend structure
+            from noxrunner.backend.local import LocalBackend
 
-            self._backend: SandboxBackend = LocalSandboxBackend()
+            self._backend: SandboxBackend = LocalBackend()
         elif base_url is None or base_url.strip() == "":
             raise ValueError(
                 "base_url is required unless local_test=True. "
                 "For local testing, set local_test=True explicitly."
             )
         else:
-            from noxrunner.remote_backend import RemoteSandboxBackend
+            # Use new backend structure
+            from noxrunner.backend.http import HTTPSandboxBackend
 
-            self._backend: SandboxBackend = RemoteSandboxBackend(base_url, timeout)
+            self._backend: SandboxBackend = HTTPSandboxBackend(base_url, timeout)
+
+        # Initialize tar handler for file operations (internal module)
+        self._tar_handler = TarHandler()
 
     def health_check(self) -> bool:
         """
@@ -261,6 +268,53 @@ class NoxRunnerClient:
             >>> # Extract tar_data using tarfile
         """
         return self._backend.download_files(session_id, src)
+
+    def download_workspace(
+        self, session_id: str, local_dir: Union[str, Path], src: str = "/workspace"
+    ) -> bool:
+        """
+        Download workspace from sandbox to local directory.
+
+        This is a convenience method that downloads files from the sandbox
+        and extracts them to a local directory. It handles tar extraction
+        automatically, so you don't need to deal with tar archives directly.
+
+        Args:
+            session_id: Session identifier
+            local_dir: Local directory path to extract files to
+            src: Source directory in sandbox (default: '/workspace')
+
+        Returns:
+            True if successful, False otherwise
+
+        Raises:
+            :exc:`~noxrunner.exceptions.NoxRunnerHTTPError`: If request fails
+            ValueError: If local_dir is invalid
+
+        Example:
+            >>> client.download_workspace("my-session", "./output")
+            True
+            >>> # Files from /workspace in sandbox are now in ./output
+        """
+        local_path = Path(local_dir)
+
+        try:
+            # Download tar archive from backend
+            tar_data = self.download_files(session_id, src)
+
+            if not tar_data or len(tar_data) == 0:
+                return False
+
+            # Use TarHandler to extract tar archive (internal module)
+            file_count = self._tar_handler.extract_tar(
+                tar_data=tar_data,
+                dest=local_path,
+                sandbox_path=None,
+                allow_absolute=False,
+            )
+            return file_count > 0  # Success if files were extracted
+        except Exception:
+            return False
 
     def delete_sandbox(self, session_id: str) -> bool:
         """

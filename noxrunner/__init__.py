@@ -12,9 +12,9 @@ Example:
     >>> print(result["stdout"])
 """
 
-from noxrunner.exceptions import NoxRunnerError, NoxRunnerHTTPError
 from noxrunner.client import NoxRunnerClient
+from noxrunner.exceptions import NoxRunnerError, NoxRunnerHTTPError
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 __author__ = "NoxRunner Team"
 __all__ = ["NoxRunnerClient", "NoxRunnerError", "NoxRunnerHTTPError"]

@@ -36,7 +36,8 @@ These tests:
 - Connect to a real backend service
 - Test end-to-end workflows
 - Verify API compatibility
-- Require ``NOXRUNNER_BASE_URL`` environment variable
+- Automatically set ``NOXRUNNER_ENABLE_INTEGRATION=1``
+- Optionally use ``NOXRUNNER_BASE_URL`` environment variable (defaults to http://127.0.0.1:8080)
 
 Running Tests
 -------------
@@ -63,11 +64,11 @@ Integration Tests
    # Set backend URL (optional, defaults to http://127.0.0.1:8080)
    export NOXRUNNER_BASE_URL=http://your-backend:8080
 
-   # Run integration tests
+   # Run integration tests (automatically enables integration tests)
    make test-integration
 
-   # Or directly with pytest
-   pytest tests/ -v -m integration
+   # Or directly with pytest (requires NOXRUNNER_ENABLE_INTEGRATION=1)
+   NOXRUNNER_ENABLE_INTEGRATION=1 pytest tests/ -v -m integration
 
 Test Markers
 ------------

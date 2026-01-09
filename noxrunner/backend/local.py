@@ -1,109 +1,33 @@
 """
-Local sandbox backend for offline testing.
+Local filesystem backend for NoxRunner sandbox execution.
 
-WARNING: This module provides a local testing sandbox that executes commands
-in the local environment. Use with extreme caution as it can cause data loss
-or security risks.
+WARNING: This backend executes commands in the local environment.
+Use with extreme caution as it can cause data loss or security risks.
 """
 
 import os
-import sys
-import subprocess
 import shutil
+import subprocess
+import sys
 import time
-import tarfile
-import io
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Union
-from datetime import datetime, timedelta, timezone
 
-from noxrunner.backend import SandboxBackend
+from noxrunner.backend.base import SandboxBackend
+from noxrunner.fileops.tar_handler import TarHandler
+from noxrunner.security.command_validator import CommandValidator
+from noxrunner.security.path_sanitizer import PathSanitizer
 
 
-class LocalSandboxBackend(SandboxBackend):
+class LocalBackend(SandboxBackend):
     """
-    Local sandbox backend for offline testing.
+    Local filesystem backend for offline testing.
 
     WARNING: This backend executes commands in the local environment using
     temporary directories. It should ONLY be used for testing purposes.
     Using this in production can cause severe data loss or security risks.
     """
-
-    # Security: Allowed commands that are safe to execute
-    # Only allow read/write operations, no deletion or execution outside sandbox
-    _ALLOWED_COMMANDS = {
-        "echo",
-        "cat",
-        "ls",
-        "pwd",
-        "head",
-        "tail",
-        "grep",
-        "wc",
-        "sort",
-        "python",
-        "python3",
-        "python2",
-        "node",
-        "bash",
-        "sh",
-        "zsh",
-        "test",
-        "[",
-        "true",
-        "false",
-        "which",
-        "type",
-        "env",
-        "printenv",
-        "mkdir",
-        "touch",
-        "cp",
-        "mv",
-        "ln",
-        "readlink",
-        "stat",
-        "file",
-        "find",
-        "xargs",
-        "sed",
-        "awk",
-        "cut",
-        "tr",
-        "uniq",
-        "diff",
-        "cmp",
-        "tar",
-        "gzip",
-        "gunzip",
-        "zip",
-        "unzip",
-    }
-
-    # Dangerous commands that should be blocked
-    _BLOCKED_COMMANDS = {
-        "rm",
-        "rmdir",
-        "unlink",
-        "del",
-        "format",
-        "mkfs",
-        "dd",
-        "fdisk",
-        "shutdown",
-        "reboot",
-        "halt",
-        "poweroff",
-        "init",
-        "killall",
-        "sudo",
-        "su",
-        "chmod",
-        "chown",
-        "chgrp",
-        "mount",
-        "umount",
-    }
 
     def __init__(self, base_dir: str = "/tmp"):
         """
@@ -114,7 +38,11 @@ class LocalSandboxBackend(SandboxBackend):
         """
         self.base_dir = Path(base_dir)
         self._sandboxes: Dict[str, Dict] = {}  # session_id -> sandbox info
-        self._warned_init = False
+
+        # Initialize security and file operation utilities
+        self.validator = CommandValidator()
+        self.sanitizer = PathSanitizer()
+        self.tar_handler = TarHandler()
 
         # Print warning on initialization
         self._print_warning(
@@ -153,64 +81,6 @@ class LocalSandboxBackend(SandboxBackend):
         workspace.mkdir(exist_ok=True)
 
         return sandbox_path
-
-    def _validate_command(self, cmd: List[str]) -> bool:
-        """
-        Validate that command is safe to execute.
-
-        Security: Only allow safe commands, block dangerous ones.
-        """
-        if not cmd:
-            return False
-
-        command = cmd[0].lower()
-
-        # Block dangerous commands
-        if command in self._BLOCKED_COMMANDS:
-            return False
-
-        # For testing, allow common commands
-        # In production, this should be more restrictive
-        return True
-
-    def _sanitize_path(self, path: str, sandbox_path: Path) -> Path:
-        """
-        Sanitize a path to ensure it's within the sandbox.
-
-        Security: Prevent path traversal attacks.
-        Only allows paths within the sandbox directory.
-        """
-        sandbox_resolved = sandbox_path.resolve()
-        workspace = sandbox_resolved / "workspace"
-
-        # Resolve relative paths
-        if os.path.isabs(path):
-            # If absolute, ensure it's within sandbox
-            try:
-                resolved = Path(path).resolve()
-                # Check if resolved path is within sandbox
-                try:
-                    resolved.relative_to(sandbox_resolved)
-                    # Path is within sandbox, return it
-                    return resolved
-                except ValueError:
-                    # Path outside sandbox, redirect to workspace
-                    return workspace
-            except (OSError, ValueError):
-                return workspace
-        else:
-            # Relative path, resolve within workspace
-            try:
-                resolved = (workspace / path).resolve()
-                # Ensure resolved path is still within sandbox
-                try:
-                    resolved.relative_to(sandbox_resolved)
-                    return resolved
-                except ValueError:
-                    # Path traversal detected, return workspace root
-                    return workspace
-            except (OSError, ValueError):
-                return workspace
 
     def health_check(self) -> bool:
         """Check if the local sandbox backend is healthy."""
@@ -289,8 +159,8 @@ class LocalSandboxBackend(SandboxBackend):
         sandbox = self._sandboxes[session_id]
         sandbox_path = sandbox["path"]
 
-        # Validate command
-        if not self._validate_command(cmd):
+        # Validate command using CommandValidator
+        if not self.validator.validate(cmd):
             return {
                 "exitCode": 1,
                 "stdout": "",
@@ -298,8 +168,8 @@ class LocalSandboxBackend(SandboxBackend):
                 "durationMs": 0,
             }
 
-        # Sanitize workdir
-        workdir_path = self._sanitize_path(workdir, sandbox_path)
+        # Sanitize workdir using PathSanitizer
+        workdir_path = self.sanitizer.sanitize(workdir, sandbox_path)
         workdir_path.mkdir(parents=True, exist_ok=True)
 
         # Prepare environment
@@ -362,50 +232,35 @@ class LocalSandboxBackend(SandboxBackend):
 
         sandbox = self._sandboxes[session_id]
         sandbox_path = sandbox["path"]
-        dest_path = self._sanitize_path(dest, sandbox_path)
+        dest_path = self.sanitizer.sanitize(dest, sandbox_path)
         dest_path.mkdir(parents=True, exist_ok=True)
 
         for filepath, content in files.items():
-            # Sanitize file path
-            safe_path = Path(filepath).name  # Only use filename, no path traversal
+            # Sanitize file path - handle relative paths with subdirectories
+            # First check if it's a relative path with subdirectories
+            if "/" in filepath or "\\" in filepath:
+                # Path contains directory separators, sanitize as relative path
+                # Remove any leading slashes and path traversal attempts
+                clean_path = filepath.lstrip("/").replace("\\", "/")
+                if ".." in clean_path or clean_path.startswith("/"):
+                    # Path traversal detected, use filename only
+                    safe_path = Path(self.sanitizer.sanitize_filename(filepath))
+                else:
+                    # Safe relative path, use it
+                    safe_path = Path(clean_path)
+            else:
+                # Simple filename, use sanitize_filename
+                safe_path = Path(self.sanitizer.sanitize_filename(filepath))
+
             target = dest_path / safe_path
+            # Create parent directories
+            target.parent.mkdir(parents=True, exist_ok=True)
 
             # Write file
             if isinstance(content, str):
                 target.write_text(content, encoding="utf-8")
             else:
                 target.write_bytes(content)
-
-        return True
-
-    def upload_tar(self, session_id: str, tar_data: bytes, dest: str = "/workspace") -> bool:
-        """Upload tar archive to the sandbox."""
-        if session_id not in self._sandboxes:
-            self.create_sandbox(session_id)
-
-        sandbox = self._sandboxes[session_id]
-        sandbox_path = sandbox["path"]
-        dest_path = self._sanitize_path(dest, sandbox_path)
-        dest_path.mkdir(parents=True, exist_ok=True)
-
-        # Extract tar archive
-        tar_buffer = io.BytesIO(tar_data)
-        with tarfile.open(fileobj=tar_buffer, mode="r:*") as tar:
-            # Security: Only extract files within sandbox
-            for member in tar.getmembers():
-                # Sanitize member name
-                safe_name = Path(member.name).name
-                target = dest_path / safe_name
-
-                # Ensure target is within sandbox
-                try:
-                    target.resolve().relative_to(sandbox_path.resolve())
-                except ValueError:
-                    # Path outside sandbox, skip
-                    continue
-
-                if member.isfile():
-                    tar.extract(member, dest_path)
 
         return True
 
@@ -416,25 +271,13 @@ class LocalSandboxBackend(SandboxBackend):
 
         sandbox = self._sandboxes[session_id]
         sandbox_path = sandbox["path"]
-        src_path = self._sanitize_path(src, sandbox_path)
+        src_path = self.sanitizer.sanitize(src, sandbox_path)
 
         if not src_path.exists():
             raise ValueError(f"Source path does not exist: {src}")
 
-        # Create tar archive
-        tar_buffer = io.BytesIO()
-        with tarfile.open(fileobj=tar_buffer, mode="w:gz") as tar:
-            if src_path.is_file():
-                tar.add(src_path, arcname=src_path.name)
-            elif src_path.is_dir():
-                for root, dirs, files in os.walk(src_path):
-                    for file in files:
-                        file_path = Path(root) / file
-                        arcname = file_path.relative_to(src_path)
-                        tar.add(file_path, arcname=str(arcname))
-
-        tar_buffer.seek(0)
-        return tar_buffer.read()
+        # Use TarHandler to create tar archive from directory
+        return self.tar_handler.create_tar_from_directory(src_path, src_path)
 
     def delete_sandbox(self, session_id: str) -> bool:
         """

@@ -18,7 +18,7 @@ except ImportError as e:
     ) from e
 
 project = 'NoxRunner'
-copyright = '2024, NoxRunner Team'
+copyright = '2024-2025, NoxRunner Team'
 author = 'NoxRunner Team'
 release = __version__
 version = '.'.join(__version__.split('.')[:2])

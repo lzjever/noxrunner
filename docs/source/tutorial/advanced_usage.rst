@@ -53,11 +53,11 @@ Manage multiple sessions:
 Custom Backend Implementation
 -----------------------------
 
-Implement a custom backend:
+Implement a custom backend by extending the abstract base class:
 
 .. code-block:: python
 
-   from noxrunner.backend import SandboxBackend
+   from noxrunner.backend.base import SandboxBackend
 
    class MyBackend(SandboxBackend):
        def health_check(self):
@@ -67,7 +67,7 @@ Implement a custom backend:
            # Your implementation
            return {"podName": f"my-{session_id}", "expiresAt": "..."}
 
-       # Implement other required methods...
+       # Implement other required methods from SandboxBackend...
 
    # Use custom backend
    backend = MyBackend()

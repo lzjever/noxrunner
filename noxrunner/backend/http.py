@@ -1,30 +1,36 @@
 """
-Remote HTTP backend for NoxRunner sandbox execution.
+HTTP client backend for NoxRunner sandbox execution.
+
+This backend communicates with a remote NoxRunner-compatible API via HTTP.
+The remote service may be implemented using Kubernetes, Docker, or other technologies.
 """
 
 import json
 import time
-import tarfile
-import io
-import urllib.request
-import urllib.parse
 import urllib.error
+import urllib.parse
+import urllib.request
 from typing import Dict, List, Optional, Union
 
-from noxrunner.backend import SandboxBackend
+from noxrunner.backend.base import SandboxBackend
 from noxrunner.exceptions import NoxRunnerError, NoxRunnerHTTPError
+from noxrunner.fileops.tar_handler import TarHandler
 
 
-class RemoteSandboxBackend(SandboxBackend):
+class HTTPSandboxBackend(SandboxBackend):
     """
-    Remote HTTP backend for NoxRunner sandbox execution.
+    HTTP client backend for NoxRunner sandbox execution.
 
     This backend communicates with a remote NoxRunner-compatible API via HTTP.
+    The remote service may be implemented using Kubernetes, Docker, or other technologies.
+
+    This backend acts as an HTTP client and does not implement the sandbox itself.
+    It connects to a remote service that provides the actual sandbox implementation.
     """
 
     def __init__(self, base_url: str, timeout: int = 30):
         """
-        Initialize the remote backend.
+        Initialize the HTTP backend.
 
         Args:
             base_url: Base URL of the NoxRunner backend (e.g., "http://127.0.0.1:8080")
@@ -32,6 +38,7 @@ class RemoteSandboxBackend(SandboxBackend):
         """
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.tar_handler = TarHandler()
 
     def _request(
         self,
@@ -187,26 +194,11 @@ class RemoteSandboxBackend(SandboxBackend):
         self, session_id: str, files: Dict[str, Union[str, bytes]], dest: str = "/workspace"
     ) -> bool:
         """Upload files to the sandbox."""
-        # Create tar archive in memory
-        tar_buffer = io.BytesIO()
-        with tarfile.open(fileobj=tar_buffer, mode="w:gz") as tar:
-            for filepath, content in files.items():
-                # Convert string to bytes if needed
-                if isinstance(content, str):
-                    content_bytes = content.encode("utf-8")
-                else:
-                    content_bytes = content
-
-                # Create tar info
-                info = tarfile.TarInfo(name=filepath)
-                info.size = len(content_bytes)
-                tar.addfile(info, io.BytesIO(content_bytes))
-
-        tar_buffer.seek(0)
-        tar_data = tar_buffer.read()
+        # Use TarHandler to create tar archive
+        tar_data = self.tar_handler.create_tar(files)
 
         # Upload
-        path = f'/v1/sandboxes/{session_id}/files/upload?{urllib.parse.urlencode({"dest": dest})}'
+        path = f"/v1/sandboxes/{session_id}/files/upload?{urllib.parse.urlencode({'dest': dest})}"
         try:
             status_code, _ = self._request(
                 "POST", path, data=tar_data, content_type="application/x-tar"
@@ -219,7 +211,7 @@ class RemoteSandboxBackend(SandboxBackend):
 
     def download_files(self, session_id: str, src: str = "/workspace") -> bytes:
         """Download files from the sandbox as a tar archive."""
-        path = f'/v1/sandboxes/{session_id}/files/download?{urllib.parse.urlencode({"src": src})}'
+        path = f"/v1/sandboxes/{session_id}/files/download?{urllib.parse.urlencode({'src': src})}"
         status_code, response_body = self._request("GET", path)
 
         if not (200 <= status_code < 300):

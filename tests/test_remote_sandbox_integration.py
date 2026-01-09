@@ -2,13 +2,9 @@
 Integration tests for remote sandbox backend.
 
 These tests require a running NoxRunner backend service.
-They are marked with 'integration' marker and will be skipped
-unless explicitly run with pytest -m integration.
+They are marked with 'integration' marker and run with `make test-integration`.
 
 To run these tests:
-    pytest tests/test_remote_sandbox_integration.py -m integration
-
-Or use make:
     make test-integration
 
 Environment Variables:
@@ -16,11 +12,11 @@ Environment Variables:
 """
 
 import os
-import pytest
 import time
 
-from noxrunner import NoxRunnerClient, NoxRunnerError, NoxRunnerHTTPError
+import pytest
 
+from noxrunner import NoxRunnerClient, NoxRunnerError, NoxRunnerHTTPError
 
 # Get base URL from environment
 BASE_URL = os.environ.get("NOXRUNNER_BASE_URL", "http://127.0.0.1:8080")
@@ -336,8 +332,8 @@ def test_download_files(client, session_id):
     assert len(tar_data) > 0
 
     # Extract and verify
-    import tarfile
     import io
+    import tarfile
 
     tar_buffer = io.BytesIO(tar_data)
     # Use r:* to auto-detect compression (some backends return gzip, others return plain tar)
@@ -498,9 +494,9 @@ def test_exec_shell_with_pipes(client, session_id):
     stdout = result["stdout"].strip()
     assert "line1" in stdout, f"Expected 'line1' in output, got: {repr(stdout)}"
     assert "line2" in stdout, f"Expected 'line2' in output, got: {repr(stdout)}"
-    assert (
-        "line4" not in stdout or stdout.count("line") <= 2
-    ), f"Expected only first 2 lines, got: {repr(stdout)}"
+    assert "line4" not in stdout or stdout.count("line") <= 2, (
+        f"Expected only first 2 lines, got: {repr(stdout)}"
+    )
 
 
 @pytest.mark.integration
@@ -517,9 +513,9 @@ def test_exec_shell_with_multiple_commands(client, session_id):
     assert result["exitCode"] == 0, f"Command failed: {result.get('stderr', '')}"
     stdout = result["stdout"].strip()
     # The output should contain both values
-    assert (
-        "value1" in stdout and "value2" in stdout
-    ), f"Expected both 'value1' and 'value2' in output, got: {repr(stdout)}"
+    assert "value1" in stdout and "value2" in stdout, (
+        f"Expected both 'value1' and 'value2' in output, got: {repr(stdout)}"
+    )
 
 
 @pytest.mark.integration
@@ -569,6 +565,6 @@ def test_exec_shell_with_workdir(client, session_id):
 
     assert result["exitCode"] == 0, f"Command failed: {result.get('stderr', '')}"
     stdout = result["stdout"].strip()
-    assert (
-        "subdir" in stdout or "/workspace/subdir" in stdout
-    ), f"Expected workdir in output, got: {repr(stdout)}"
+    assert "subdir" in stdout or "/workspace/subdir" in stdout, (
+        f"Expected workdir in output, got: {repr(stdout)}"
+    )

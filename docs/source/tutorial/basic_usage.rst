@@ -31,6 +31,19 @@ Upload Binary Files
 Download and Extract
 ~~~~~~~~~~~~~~~~~~~~
 
+Recommended: Use ``download_workspace()`` for automatic extraction:
+
+.. code-block:: python
+
+   import tempfile
+   from pathlib import Path
+
+   with tempfile.TemporaryDirectory() as tmpdir:
+       client.download_workspace(session_id, tmpdir)
+       # Files are now extracted in tmpdir
+
+Manual extraction (if needed):
+
 .. code-block:: python
 
    import tarfile

@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-01-09
+
+### Added
+- **Modular Architecture**: Complete refactoring with clear separation of concerns
+  - `backend/` module: Abstract base class and concrete implementations
+  - `security/` module: Command validation and path sanitization utilities
+  - `fileops/` module: Tar archive handling utilities
+- **Unified Client Interface**: `NoxRunnerClient.download_workspace()` method for seamless file synchronization
+- **Enhanced Security**: Centralized security utilities (`CommandValidator`, `PathSanitizer`)
+- **Improved File Operations**: Unified tar handling with security checks
+- **Comprehensive Test Coverage**: 98+ unit tests and 30+ integration tests
+- **Ruff Integration**: Migrated from flake8/black to ruff for code quality
+
+### Changed
+- **BREAKING**: Removed backward compatibility aliases (`RemoteSandboxBackend`, `LocalSandboxBackend`)
+- **BREAKING**: Renamed `RemoteSandboxBackend` → `HTTPSandboxBackend`
+- **BREAKING**: Renamed `LocalSandboxBackend` → `LocalBackend`
+- **BREAKING**: Removed `WorkspaceSync` class (functionality integrated into `TarHandler` and `NoxRunnerClient`)
+- **Architecture**: Client now directly uses `TarHandler` instead of `WorkspaceSync` wrapper
+- **File Upload**: Enhanced `upload_files` to properly handle subdirectory paths
+- **Code Quality**: Migrated from flake8/black to ruff for linting and formatting
+
+### Fixed
+- Fixed file synchronization in local sandbox mode
+- Fixed subdirectory handling in `upload_files` method
+- Fixed path traversal security issues in tar extraction
+- Fixed test failures in integration tests
+
+### Removed
+- `noxrunner/backend.py` (replaced by `backend/base.py`)
+- `noxrunner/local_sandbox.py` (replaced by `backend/local.py`)
+- `noxrunner/remote_backend.py` (replaced by `backend/http.py`)
+- `noxrunner/fileops/workspace_sync.py` (functionality integrated into client)
+- All backward compatibility aliases
+
+### Internal
+- Refactored code structure for better maintainability
+- Extracted common utilities into dedicated modules
+- Improved code organization and separation of concerns
+- Enhanced test coverage and documentation
+
 ## [1.0.0] - 2024-01-04
 
 ### Added

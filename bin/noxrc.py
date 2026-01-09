@@ -219,7 +219,12 @@ def cmd_download(args):
             extract_dir.mkdir(parents=True, exist_ok=True)
 
             with tarfile.open(fileobj=io.BytesIO(tar_data), mode="r:gz") as tar:
-                tar.extractall(extract_dir)
+                # Use 'data' filter for Python 3.12+ to avoid deprecation warning
+                # and enhance security (restricts symlinks, devices, etc.)
+                if sys.version_info >= (3, 12):
+                    tar.extractall(extract_dir, filter="data")
+                else:
+                    tar.extractall(extract_dir)
 
             success(f"Extracted to {extract_dir}")
 

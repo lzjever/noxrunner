@@ -66,19 +66,40 @@ NoxRunner is ideal for:
 Architecture
 ------------
 
-NoxRunner follows a client-server architecture::
+NoxRunner follows a modular client-server architecture::
 
-    Python Client
+    NoxRunnerClient (Public API)
          |
-         | HTTP API
+         | Delegates to
          v
-    NoxRunner Backend
+    SandboxBackend (Abstract Interface)
          |
-         v
-    Sandbox Environment
+         +-- LocalBackend (Local filesystem)
          |
-         v
-    Container/Pod
+         +-- HTTPSandboxBackend (HTTP client)
+                |
+                | HTTP API
+                v
+           NoxRunner Backend Service
+                |
+                v
+           Sandbox Environment (Container/Pod)
+
+The architecture is organized into clear layers:
+
+**Client Layer**
+  - ``NoxRunnerClient``: Unified public API for users
+  - Automatically selects appropriate backend (local or HTTP)
+  - Provides high-level convenience methods
+
+**Backend Layer**
+  - ``SandboxBackend``: Abstract base class defining the interface
+  - ``LocalBackend``: Local filesystem implementation for testing
+  - ``HTTPSandboxBackend``: HTTP client for remote services
+
+**Internal Modules**
+  - ``security/``: Command validation and path sanitization
+  - ``fileops/``: Tar archive handling utilities
 
 The client communicates with a backend service that manages sandbox execution environments. 
 The backend can be implemented using various technologies:

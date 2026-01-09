@@ -1,4 +1,4 @@
-.PHONY: help clean install dev-install test test-cov lint format format-check check build sdist wheel docs html clean-docs upload upload-test check-package
+.PHONY: help clean install dev-install test test-cov test-integration lint format format-check check build sdist wheel docs html clean-docs upload upload-test check-package
 
 # Use uv if available, otherwise fall back to pip
 UV := $(shell command -v uv 2>/dev/null)
@@ -27,8 +27,8 @@ help:
 	@echo "  test-integration - Run integration tests (requires running NoxRunner backend)"
 	@echo ""
 	@echo "Code Quality:"
-	@echo "  lint          - Run linting checks (flake8)"
-	@echo "  format        - Format code with black"
+	@echo "  lint          - Run linting checks (ruff)"
+	@echo "  format        - Format code with ruff"
 	@echo "  format-check  - Check code formatting"
 	@echo "  check         - Run all checks (lint + format check + tests)"
 	@echo ""
@@ -103,16 +103,16 @@ test-integration:
 		echo "Using default base URL: http://127.0.0.1:8080"; \
 		echo "Set NOXRUNNER_BASE_URL to use a different backend"; \
 	fi
-	$(PYTHON_CMD) -m pytest tests/ -v -m integration
+	NOXRUNNER_ENABLE_INTEGRATION=1 $(PYTHON_CMD) -m pytest tests/ -v -m integration
 
 lint:
-	$(PYTHON_CMD) -m flake8 noxrunner/ tests/ examples/ --max-line-length=100 --extend-ignore=E203,W503,E501
+	$(PYTHON_CMD) -m ruff check noxrunner/ tests/ examples/ --output-format=concise
 
 format:
-	$(PYTHON_CMD) -m black noxrunner/ tests/ examples/
+	$(PYTHON_CMD) -m ruff format noxrunner/ tests/ examples/
 
 format-check:
-	$(PYTHON_CMD) -m black --check noxrunner/ tests/ examples/
+	$(PYTHON_CMD) -m ruff format --check noxrunner/ tests/ examples/
 
 check: lint format-check test
 	@echo "All checks passed!"

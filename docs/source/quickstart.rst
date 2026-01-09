@@ -60,8 +60,16 @@ As a Library
        "script.py": "print('Hello from NoxRunner!')"
    })
 
-   # Download files
+   # Download files as tar archive
    tar_data = client.download_files(session_id)
+
+   # Download and extract to local directory (recommended)
+   import tempfile
+   from pathlib import Path
+   
+   with tempfile.TemporaryDirectory() as tmpdir:
+       client.download_workspace(session_id, tmpdir)
+       # Files are now in tmpdir
 
    # Delete sandbox
    client.delete_sandbox(session_id)
