@@ -273,13 +273,18 @@ def cmd_shell(args):
 
     info(f"Interactive shell for session: {args.session_id}")
     info("Type 'exit' or 'quit' to exit, 'help' for help")
+    info("Note: Each command runs in a fresh shell. Use 'cd dir && cmd' for directory context.")
     print()
+
+    # Track current working directory for prompt display and command execution
+    current_workdir = args.workdir
 
     while True:
         try:
-            # Read command
+            # Read command - show current workdir in prompt
             try:
-                cmd_line = input(colorize(f"noxrunner:{args.session_id}$ ", Colors.CYAN))
+                prompt = colorize(f"noxrunner:{args.session_id}:{current_workdir}$ ", Colors.CYAN)
+                cmd_line = input(prompt)
             except (EOFError, KeyboardInterrupt):
                 print()
                 break
@@ -296,7 +301,13 @@ def cmd_shell(args):
                 print("  exit, quit  - Exit shell")
                 print("  help        - Show this help")
                 print("  touch       - Extend TTL")
+                print("  cd <dir>    - Change working directory (persists between commands)")
+                print("  pwd         - Show current working directory")
                 print("  Any other command will be executed in the sandbox")
+                print()
+                print("Notes:")
+                print("  - Shell operators (&&, |, ;, >, etc.) are fully supported")
+                print("  - Use 'cd dir && cmd' to run commands in a specific directory")
                 continue
             if cmd_line == "touch":
                 if client.touch(args.session_id):
@@ -305,22 +316,65 @@ def cmd_shell(args):
                     error("Failed to extend TTL")
                 continue
 
-            # Parse command
-            try:
-                cmd_parts = shlex.split(cmd_line)
-            except ValueError as e:
-                error(f"Invalid command: {e}")
+            # Handle 'cd' command specially to track working directory
+            if cmd_line == "pwd":
+                print(current_workdir)
                 continue
 
-            if not cmd_parts:
+            # Handle pure 'cd' commands to update tracked workdir
+            # Supports: cd, cd -, cd ~, cd /path, cd path
+            if cmd_line == "cd" or cmd_line == "cd ~":
+                current_workdir = "/workspace"
+                continue
+            if cmd_line.startswith("cd ") and "&&" not in cmd_line and ";" not in cmd_line and "|" not in cmd_line:
+                # Simple cd command - update tracked workdir
+                target_dir = cmd_line[3:].strip()
+                # Remove quotes if present
+                if (target_dir.startswith('"') and target_dir.endswith('"')) or \
+                   (target_dir.startswith("'") and target_dir.endswith("'")):
+                    target_dir = target_dir[1:-1]
+
+                if target_dir == "-":
+                    warning("cd - is not supported in this shell")
+                    continue
+                elif target_dir == "~" or target_dir == "":
+                    current_workdir = "/workspace"
+                elif target_dir.startswith("/"):
+                    # Absolute path
+                    new_workdir = target_dir
+                else:
+                    # Relative path - resolve against current workdir
+                    if current_workdir == "/":
+                        new_workdir = "/" + target_dir
+                    else:
+                        new_workdir = current_workdir.rstrip("/") + "/" + target_dir
+
+                # Normalize path (handle . and ..)
+                import posixpath
+                new_workdir = posixpath.normpath(new_workdir)
+
+                # Verify the directory exists
+                try:
+                    result = client.exec_shell(
+                        args.session_id,
+                        f"test -d {shlex.quote(new_workdir)} && echo EXISTS",
+                        workdir="/",
+                        timeout_seconds=5,
+                    )
+                    if "EXISTS" in result.get("stdout", ""):
+                        current_workdir = new_workdir
+                    else:
+                        error(f"cd: {target_dir}: No such directory")
+                except NoxRunnerError as e:
+                    error(f"cd failed: {e}")
                 continue
 
-            # Execute command
+            # Execute command using exec_shell (supports shell operators)
             try:
-                result = client.exec(
+                result = client.exec_shell(
                     args.session_id,
-                    cmd_parts,
-                    workdir=args.workdir,
+                    cmd_line,  # Pass raw command string, not parsed list
+                    workdir=current_workdir,
                     timeout_seconds=args.timeout_seconds,
                 )
 
