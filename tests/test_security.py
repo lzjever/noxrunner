@@ -50,6 +50,48 @@ class TestCommandValidator:
         assert self.validator.validate(["ECHO", "hello"]) is True
         assert self.validator.validate(["RM", "-rf", "/"]) is False
 
+    def test_validate_unknown_command_blocked(self):
+        """Test that unknown commands are blocked by allowlist."""
+        # Unknown commands should be rejected
+        assert self.validator.validate(["unknown_command", "arg1"]) is False
+        assert self.validator.validate(["malicious_cmd", "--evil"]) is False
+        assert self.validator.validate(["nmap", "localhost"]) is False
+        assert self.validator.validate(["nc", "-l", "1234"]) is False
+
+    def test_validate_all_allowed_commands_pass(self):
+        """Test that all commands in ALLOWED_COMMANDS pass validation."""
+
+        # Sample of allowed commands
+        allowed_samples = [
+            "echo",
+            "cat",
+            "ls",
+            "pwd",
+            "python3",
+            "bash",
+            "grep",
+            "mkdir",
+            "touch",
+            "cp",
+            "mv",
+            "tar",
+            "gzip",
+        ]
+
+        for cmd in allowed_samples:
+            assert self.validator.validate([cmd, "arg"]) is True, f"Command {cmd} should be allowed"
+
+    def test_validate_all_blocked_commands_fail(self):
+        """Test that all commands in BLOCKED_COMMANDS fail validation."""
+
+        # Sample of blocked commands
+        blocked_samples = ["rm", "rmdir", "sudo", "su", "chmod", "chown", "killall"]
+
+        for cmd in blocked_samples:
+            assert self.validator.validate([cmd, "arg"]) is False, (
+                f"Command {cmd} should be blocked"
+            )
+
 
 class TestPathSanitizer:
     """Test PathSanitizer."""
@@ -115,6 +157,58 @@ class TestPathSanitizer:
         expected = sandbox_path / "workspace"
         assert result1 == expected
         assert result2 == expected
+
+    def test_sanitize_path_traversal_advanced(self):
+        """Test advanced path traversal attempts that bypass simple checks."""
+        sandbox_path = self.temp_dir / "sandbox"
+        sandbox_path.mkdir()
+        workspace = sandbox_path / "workspace"
+        workspace.mkdir()
+
+        # Various path traversal bypass attempts
+        traversal_attempts = [
+            "....//....//etc/passwd",  # Double dots variation
+            "..././../etc/passwd",  # Mixed dots
+            "./../../etc/passwd",  # Leading dot
+            "..//..//etc/passwd",  # Double slashes
+            "../",  # Parent directory only
+            "../../",  # Multiple parents
+            "...",  # Triple dot (traversal)
+            "....",  # Quadruple dot (traversal)
+            "..\\..\\etc\\passwd",  # Windows-style (if applicable)
+            "/../../etc/passwd",  # Leading slash with traversal
+        ]
+
+        for attempt in traversal_attempts:
+            result = self.sanitizer.sanitize(attempt, sandbox_path)
+            # All traversal attempts should be blocked and redirected to workspace
+            assert result == workspace, f"Traversal attempt not blocked: {attempt}"
+
+    def test_sanitize_valid_paths_still_work(self):
+        """Test that valid paths still work after security fix."""
+        sandbox_path = self.temp_dir / "sandbox"
+        sandbox_path.mkdir()
+        workspace = sandbox_path / "workspace"
+        workspace.mkdir()
+
+        # Valid paths should still work
+        valid_paths = [
+            "file.txt",
+            "subdir/file.txt",
+            "subdir/deeply/nested/file.txt",
+            "dir../file.txt",  # Contains .. but is not a traversal
+            "file..txt",  # Contains .. but is not a traversal
+            "....txt",  # Looks suspicious but is a valid filename
+            "...txt",  # Also a valid filename
+        ]
+
+        for path in valid_paths:
+            result = self.sanitizer.sanitize(path, sandbox_path)
+            # Verify result is within workspace
+            try:
+                result.relative_to(workspace)
+            except ValueError:
+                raise AssertionError(f"Valid path rejected: {path}")
 
     def test_sanitize_filename(self):
         """Test sanitizing filename."""

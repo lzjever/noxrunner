@@ -60,7 +60,11 @@ def info(msg: str):
 
 
 def get_base_url() -> Optional[str]:
-    """Get base URL from environment or default."""
+    """Get base URL from environment or default.
+
+    CLI layer configuration reading - this is the only place that reads
+    environment variables. The library modules do not read any configuration.
+    """
     url = os.environ.get("NOXRUNNER_BASE_URL", "http://127.0.0.1:8080")
     # Return None if explicitly set to empty string (for local test)
     if url == "":
@@ -68,9 +72,33 @@ def get_base_url() -> Optional[str]:
     return url
 
 
+def get_verbose() -> bool:
+    """Get verbose flag from environment.
+
+    CLI layer configuration reading - this is the only place that reads
+    environment variables. The library modules receive configuration via parameters.
+    """
+    return os.environ.get("NOXRUNNER_VERBOSE", "0") == "1"
+
+
 def create_client(args) -> NoxRunnerClient:
-    """Create NoxRunnerClient from args."""
-    return NoxRunnerClient(base_url=args.base_url, timeout=args.timeout, local_test=args.local_test)
+    """Create NoxRunnerClient from args.
+
+    CLI layer is responsible for reading all configuration (environment variables,
+    command-line args, etc.) and passing it to the library via constructor parameters.
+    """
+    # Determine base_url: command line arg takes precedence over environment
+    base_url = args.base_url
+    if base_url is None:
+        # No command line arg, use environment variable or default
+        base_url = get_base_url()
+
+    # Determine verbose: command line arg takes precedence over environment
+    verbose = args.verbose or get_verbose()
+
+    return NoxRunnerClient(
+        base_url=base_url, timeout=args.timeout, local_test=args.local_test, verbose=verbose
+    )
 
 
 def cmd_health(args):
@@ -438,7 +466,7 @@ Local Testing Mode:
 
     parser.add_argument(
         "--base-url",
-        default=get_base_url(),
+        default=None,
         help="Base URL of the NoxRunner (default: from NOXRUNNER_BASE_URL env or http://127.0.0.1:8080). Ignored if --local-test is set.",
     )
     parser.add_argument(

@@ -27,15 +27,23 @@ class LocalBackend(SandboxBackend):
     WARNING: This backend executes commands in the local environment using
     temporary directories. It should ONLY be used for testing purposes.
     Using this in production can cause severe data loss or security risks.
+
+    Architecture Note:
+        This backend does NOT read environment variables for configuration.
+        All configuration (including verbose mode) must be passed via constructor.
     """
 
-    def __init__(self, base_dir: str = "/tmp"):
+    def __init__(self, base_dir: str = "/tmp", verbose: bool = False):
         """
         Initialize local sandbox backend.
 
         Args:
             base_dir: Base directory for sandbox storage (default: /tmp)
+            verbose: Enable verbose logging (default: False)
         """
+        # Initialize parent class with verbose parameter
+        super().__init__(verbose=verbose)
+
         self.base_dir = Path(base_dir)
         self._sandboxes: Dict[str, Dict] = {}  # session_id -> sandbox info
 
@@ -44,11 +52,17 @@ class LocalBackend(SandboxBackend):
         self.sanitizer = PathSanitizer()
         self.tar_handler = TarHandler()
 
+        # Track if warning has been shown (for exec warnings)
+        self._exec_warning_shown = False
+
         # Print warning on initialization
         self._print_warning(
             "Local sandbox mode is enabled. This executes commands in your local environment.",
             "⚠️  Using local sandbox can cause SEVERE DATA LOSS or SECURITY RISKS! ⚠️",
         )
+
+        # Auto-cleanup expired sandboxes on initialization
+        self._cleanup_expired()
 
     def _print_warning(self, message: str, critical: Optional[str] = None):
         """Print a warning message to stderr."""
@@ -62,6 +76,41 @@ class LocalBackend(SandboxBackend):
         if critical:
             print(f"\033[91m\033[1m{critical}\033[0m", file=sys.stderr)
         print("", file=sys.stderr)  # Empty line for visibility
+
+    def _cleanup_expired(self):
+        """
+        Remove expired sandbox directories.
+
+        This method cleans up:
+        1. Tracked sandboxes whose TTL has expired
+        2. Orphaned sandbox directories (no longer tracked)
+        """
+        now = datetime.now(timezone.utc)
+
+        # Clean up expired tracked sandboxes
+        expired_sessions = []
+        for session_id, info in self._sandboxes.items():
+            if info.get("expires_at") and info["expires_at"] < now:
+                expired_sessions.append(session_id)
+
+        for session_id in expired_sessions:
+            try:
+                self.delete_sandbox(session_id)
+            except Exception:
+                pass  # Best effort cleanup
+
+        # Scan for orphaned sandbox directories
+        if self.base_dir.exists():
+            for sandbox_dir in self.base_dir.glob("noxrunner_sandbox_*"):
+                # Extract session_id from directory name
+                session_id = sandbox_dir.name.replace("noxrunner_sandbox_", "")
+                # Check if it's tracked
+                if session_id not in self._sandboxes:
+                    # Orphaned directory, remove it
+                    try:
+                        shutil.rmtree(sandbox_dir)
+                    except Exception:
+                        pass  # Best effort cleanup
 
     def _get_sandbox_path(self, session_id: str) -> Path:
         """Get the sandbox directory path for a session."""
@@ -131,6 +180,10 @@ class LocalBackend(SandboxBackend):
         sandbox = self._sandboxes[session_id]
         ttl = sandbox.get("ttl_seconds", 900)
         sandbox["expires_at"] = datetime.now(timezone.utc) + timedelta(seconds=ttl)
+
+        # Trigger cleanup to remove any other expired sandboxes
+        self._cleanup_expired()
+
         return True
 
     def exec(
@@ -146,11 +199,16 @@ class LocalBackend(SandboxBackend):
 
         WARNING: This executes commands in the local environment!
         """
-        # Print warning for every exec
-        self._print_warning(
-            f"Executing command in LOCAL environment: {' '.join(cmd)}",
-            "⚠️  This may cause DATA LOSS or SECURITY RISKS! ⚠️",
-        )
+        # Print warning only once (first exec call)
+        if not self._exec_warning_shown:
+            self._print_warning(
+                f"Executing command in LOCAL environment: {' '.join(cmd)}",
+                "⚠️  This may cause DATA LOSS or SECURITY RISKS! ⚠️",
+            )
+            self._exec_warning_shown = True
+        elif self.verbose:
+            # In verbose mode, show each command
+            print(f"\033[90m[noxrunner] Executing: {' '.join(cmd)}\033[0m", file=sys.stderr)
 
         if session_id not in self._sandboxes:
             # Auto-create sandbox if doesn't exist

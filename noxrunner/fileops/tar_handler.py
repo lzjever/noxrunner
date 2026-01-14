@@ -74,6 +74,52 @@ class TarHandler:
         tar_buffer.seek(0)
         return tar_buffer.read()
 
+    def _is_safe_member(self, member, dest: Path) -> bool:
+        """
+        Check if a tar member is safe to extract.
+
+        This method performs security checks to prevent:
+        - Path traversal attacks
+        - Symbolic link attacks
+        - Absolute path escapes
+
+        Args:
+            member: Tar member to check
+            dest: Destination directory
+
+        Returns:
+            True if member is safe to extract, False otherwise
+        """
+        # Check for absolute paths
+        if member.name.startswith("/"):
+            return False
+
+        # Check for path traversal (more thorough than simple ".." check)
+        path_parts = member.name.replace("\\", "/").split("/")
+        for part in path_parts:
+            if part == "..":
+                return False
+
+        # Check if the extracted path would be outside destination
+        target_path = dest / member.name
+        try:
+            target_path.resolve().relative_to(dest.resolve())
+        except ValueError:
+            return False
+
+        # For symlinks, check the link target
+        if member.issym() or member.islnk():
+            # Don't allow absolute symlinks
+            if member.linkname.startswith("/"):
+                return False
+            # Don't allow symlinks with path traversal
+            linkname_parts = member.linkname.replace("\\", "/").split("/")
+            for part in linkname_parts:
+                if part == "..":
+                    return False
+
+        return True
+
     def extract_tar(
         self,
         tar_data: bytes,
@@ -102,46 +148,35 @@ class TarHandler:
         tar_buffer = io.BytesIO(tar_data)
         with tarfile.open(fileobj=tar_buffer, mode="r:*") as tar:
             for member in tar.getmembers():
-                # Security: Skip absolute paths and paths with .. unless allowed
-                if not allow_absolute and (member.name.startswith("/") or ".." in member.name):
-                    continue
-
                 # Skip directories (they will be created automatically)
                 if member.isdir():
                     continue
 
-                # Get target path
-                target_path = dest / member.name
-
-                # Security check: Ensure target is within dest (or sandbox if provided)
-                # First check if member.name itself is safe
-                if ".." in member.name or member.name.startswith("/"):
-                    # Path traversal in name, skip
+                # Security check for all Python versions
+                # Perform comprehensive safety checks before extraction
+                if not allow_absolute and not self._is_safe_member(member, dest):
                     continue
 
+                # Additional sandbox check if provided
                 if sandbox_path:
+                    target_path = dest / member.name
                     try:
                         target_path.resolve().relative_to(sandbox_path.resolve())
                     except ValueError:
                         # Path outside sandbox, skip
                         continue
-                else:
-                    # Ensure target is within dest
-                    try:
-                        target_path.resolve().relative_to(dest.resolve())
-                    except ValueError:
-                        # Path outside dest, skip
-                        continue
 
                 # Create parent directories
+                target_path = dest / member.name
                 target_path.parent.mkdir(parents=True, exist_ok=True)
 
-                # Extract file with filter for Python 3.12+
-                # Use 'data' filter for security (restricts symlinks, devices, etc.)
-                # We've already done path traversal checks above
+                # Extract with appropriate filter based on Python version
+                # Python 3.12+: Use built-in 'data' filter
+                # Python <3.12: Manual checks already done above
                 if sys.version_info >= (3, 12):
                     tar.extract(member, dest, filter="data")
                 else:
+                    # Manual security checks already performed above
                     tar.extract(member, dest)
                 file_count += 1
 

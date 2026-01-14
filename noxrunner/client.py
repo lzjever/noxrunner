@@ -4,10 +4,12 @@ NoxRunner API Client
 Main client class for interacting with NoxRunner-compatible sandbox execution backends.
 """
 
+import tarfile
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 from noxrunner.backend.base import SandboxBackend
+from noxrunner.exceptions import NoxRunnerError, NoxRunnerHTTPError
 from noxrunner.fileops.tar_handler import TarHandler
 
 
@@ -22,6 +24,10 @@ class NoxRunnerClient:
     This makes it suitable for environments where installing third-party packages
     is restricted or undesirable.
 
+    Architecture Note:
+        This client does NOT read environment variables or configuration files.
+        All configuration must be passed through constructor parameters by client code.
+
     Example:
         >>> from noxrunner import NoxRunnerClient
         >>> client = NoxRunnerClient("http://127.0.0.1:8080")
@@ -30,7 +36,13 @@ class NoxRunnerClient:
         >>> print(result["stdout"])
     """
 
-    def __init__(self, base_url: Optional[str] = None, timeout: int = 30, local_test: bool = False):
+    def __init__(
+        self,
+        base_url: Optional[str] = None,
+        timeout: int = 30,
+        local_test: bool = False,
+        verbose: bool = False,
+    ):
         """
         Initialize the NoxRunner client.
 
@@ -41,6 +53,7 @@ class NoxRunnerClient:
             timeout: Request timeout in seconds (default: 30)
             local_test: If True, use local sandbox backend for offline testing.
                        WARNING: This executes commands in your local environment!
+            verbose: Enable verbose logging (default: False)
 
         Example:
             >>> client = NoxRunnerClient("http://127.0.0.1:8080", timeout=60)
@@ -52,7 +65,7 @@ class NoxRunnerClient:
             # Use new backend structure
             from noxrunner.backend.local import LocalBackend
 
-            self._backend: SandboxBackend = LocalBackend()
+            self._backend: SandboxBackend = LocalBackend(verbose=verbose)
         elif base_url is None or base_url.strip() == "":
             raise ValueError(
                 "base_url is required unless local_test=True. "
@@ -62,7 +75,7 @@ class NoxRunnerClient:
             # Use new backend structure
             from noxrunner.backend.http import HTTPSandboxBackend
 
-            self._backend: SandboxBackend = HTTPSandboxBackend(base_url, timeout)
+            self._backend: SandboxBackend = HTTPSandboxBackend(base_url, timeout, verbose=verbose)
 
         # Initialize tar handler for file operations (internal module)
         self._tar_handler = TarHandler()
@@ -288,8 +301,8 @@ class NoxRunnerClient:
             True if successful, False otherwise
 
         Raises:
-            :exc:`~noxrunner.exceptions.NoxRunnerHTTPError`: If request fails
-            ValueError: If local_dir is invalid
+            :exc:`~noxrunner.exceptions.NoxRunnerHTTPError`: If download fails
+            :exc:`~noxrunner.exceptions.NoxRunnerError`: If extraction fails
 
         Example:
             >>> client.download_workspace("my-session", "./output")
@@ -313,8 +326,17 @@ class NoxRunnerClient:
                 allow_absolute=False,
             )
             return file_count > 0  # Success if files were extracted
-        except Exception:
-            return False
+        except NoxRunnerHTTPError as e:
+            # Re-raise HTTP errors with context
+            raise NoxRunnerError(
+                f"Failed to download workspace for session {session_id}: {e}"
+            ) from e
+        except OSError as e:
+            # File system errors (permission, disk full, etc.)
+            raise NoxRunnerError(f"Failed to extract workspace to {local_dir}: {e}") from e
+        except tarfile.TarError as e:
+            # Tar archive errors
+            raise NoxRunnerError(f"Failed to extract tar archive: {e}") from e
 
     def delete_sandbox(self, session_id: str) -> bool:
         """

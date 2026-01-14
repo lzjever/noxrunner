@@ -65,6 +65,8 @@ class CommandValidator:
         "gunzip",
         "zip",
         "unzip",
+        "sleep",  # For testing timeout functionality
+        "cd",  # For changing directories (shell built-in)
     }
 
     # Dangerous commands that should be blocked
@@ -96,6 +98,10 @@ class CommandValidator:
         """
         Validate that command is safe to execute.
 
+        Uses strict allowlist mode - only commands in ALLOWED_COMMANDS are permitted.
+        This provides defense-in-depth security by blocking any command not explicitly
+        allowed, even if it's not in the BLOCKED_COMMANDS list.
+
         Args:
             cmd: Command to validate (list of strings)
 
@@ -107,13 +113,12 @@ class CommandValidator:
 
         command = cmd[0].lower()
 
-        # Block dangerous commands
+        # Always block dangerous commands first (defense in depth)
         if command in self.BLOCKED_COMMANDS:
             return False
 
-        # For testing, allow common commands
-        # In production, this should be more restrictive
-        return True
+        # Only allow commands in the allowlist
+        return command in self.ALLOWED_COMMANDS
 
     def is_allowed(self, command: str) -> bool:
         """

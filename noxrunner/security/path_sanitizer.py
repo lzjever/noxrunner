@@ -53,22 +53,53 @@ class PathSanitizer:
             except (OSError, ValueError):
                 return workspace
         else:
-            # Relative path, check for path traversal first
-            if ".." in path or path.startswith("/"):
-                # Path traversal detected, return workspace root
-                return workspace
-
-            # Relative path, resolve within workspace
+            # Relative path - need to handle carefully
+            # Strategy: Normalize the path component by component to detect traversal
             try:
-                resolved = (workspace / path).resolve()
-                # Ensure resolved path is still within sandbox
-                try:
-                    resolved.relative_to(sandbox_resolved)
-                    return resolved
-                except ValueError:
-                    # Path traversal detected, return workspace root
+                # Split and normalize path parts manually
+                path_parts = path.replace("\\", "/").split("/")
+                normalized_parts = []
+
+                for part in path_parts:
+                    if part == "." or not part:
+                        # Current directory or empty, skip
+                        continue
+                    elif part == "..":
+                        # Parent directory - this is traversal
+                        # For security, reject any path with .. in relative paths
+                        return workspace
+                    elif ".." in part:
+                        # Path contains .. as part of a name (e.g., "file..txt")
+                        # Only reject if it's ALL dots (repeated .. patterns)
+                        # This catches "..", "...", "....", etc. but allows "file..txt"
+                        if part.replace(".", "").replace("/", "").strip() == "":
+                            # It's all dots, likely a traversal attempt
+                            return workspace
+                        # Otherwise it's a legitimate filename with .. in it
+                        normalized_parts.append(part)
+                    else:
+                        # Normal path component
+                        normalized_parts.append(part)
+
+                # Reconstruct the safe path
+                if normalized_parts:
+                    resolved = workspace
+                    for part in normalized_parts:
+                        resolved = resolved / part
+
+                    # Verify the final path is still within sandbox
+                    try:
+                        resolved.relative_to(sandbox_resolved)
+                        return resolved
+                    except ValueError:
+                        # Something went wrong, fallback to workspace
+                        return workspace
+                else:
+                    # Empty path after normalization
                     return workspace
+
             except (OSError, ValueError):
+                # Fallback to workspace if anything fails
                 return workspace
 
     def ensure_within_sandbox(self, path: Path, sandbox_path: Path) -> bool:

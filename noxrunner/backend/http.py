@@ -26,16 +26,24 @@ class HTTPSandboxBackend(SandboxBackend):
 
     This backend acts as an HTTP client and does not implement the sandbox itself.
     It connects to a remote service that provides the actual sandbox implementation.
+
+    Architecture Note:
+        This backend does NOT read environment variables for configuration.
+        All configuration must be passed via constructor parameters.
     """
 
-    def __init__(self, base_url: str, timeout: int = 30):
+    def __init__(self, base_url: str, timeout: int = 30, verbose: bool = False):
         """
         Initialize the HTTP backend.
 
         Args:
             base_url: Base URL of the NoxRunner backend (e.g., "http://127.0.0.1:8080")
             timeout: Request timeout in seconds (default: 30)
+            verbose: Enable verbose logging (default: False)
         """
+        # Initialize parent class with verbose parameter
+        super().__init__(verbose=verbose)
+
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.tar_handler = TarHandler()
@@ -167,13 +175,8 @@ class HTTPSandboxBackend(SandboxBackend):
 
     def touch(self, session_id: str) -> bool:
         """Extend the TTL of a sandbox."""
-        try:
-            status_code, _ = self._request("POST", f"/v1/sandboxes/{session_id}/touch")
-            return status_code == 200
-        except NoxRunnerHTTPError as e:
-            if e.status_code == 200:
-                return True
-            raise
+        status_code, _ = self._request("POST", f"/v1/sandboxes/{session_id}/touch")
+        return status_code == 200
 
     def exec(
         self,
@@ -199,15 +202,10 @@ class HTTPSandboxBackend(SandboxBackend):
 
         # Upload
         path = f"/v1/sandboxes/{session_id}/files/upload?{urllib.parse.urlencode({'dest': dest})}"
-        try:
-            status_code, _ = self._request(
-                "POST", path, data=tar_data, content_type="application/x-tar"
-            )
-            return status_code == 200
-        except NoxRunnerHTTPError as e:
-            if e.status_code == 200:
-                return True
-            raise
+        status_code, _ = self._request(
+            "POST", path, data=tar_data, content_type="application/x-tar"
+        )
+        return status_code == 200
 
     def download_files(self, session_id: str, src: str = "/workspace") -> bytes:
         """Download files from the sandbox as a tar archive."""
@@ -221,13 +219,8 @@ class HTTPSandboxBackend(SandboxBackend):
 
     def delete_sandbox(self, session_id: str) -> bool:
         """Delete a sandbox."""
-        try:
-            status_code, _ = self._request("DELETE", f"/v1/sandboxes/{session_id}")
-            return status_code in (200, 204)
-        except NoxRunnerHTTPError as e:
-            if e.status_code in (200, 204):
-                return True
-            raise
+        status_code, _ = self._request("DELETE", f"/v1/sandboxes/{session_id}")
+        return status_code in (200, 204)
 
     def wait_for_pod_ready(self, session_id: str, timeout: int = 30, interval: int = 2) -> bool:
         """Wait for sandbox to be ready."""

@@ -14,7 +14,20 @@ class SandboxBackend(ABC):
 
     All backends (local, HTTP, k8s, docker, etc.) must implement this interface.
     This provides a unified API regardless of the underlying implementation.
+
+    Architecture Note:
+        This base class does NOT read environment variables or configuration files.
+        All configuration must be passed through constructor parameters by client code.
     """
+
+    def __init__(self, verbose: bool = False):
+        """
+        Initialize backend with configuration.
+
+        Args:
+            verbose: Enable verbose logging (default: False)
+        """
+        self.verbose = verbose
 
     @abstractmethod
     def health_check(self) -> bool:
